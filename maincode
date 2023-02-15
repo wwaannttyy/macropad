@@ -1,0 +1,98 @@
+
+#define CLK 1 //объявление пинов для енкодера
+#define SW 4
+#define DT 0
+#include <OLED_I2C.h> //подключение библиотеки для работы с дисплеем
+#include <Keypad.h> // подключение библиотеки для связи микроконтроллера с клавиатурой.
+#include <GyverEncoder.h> //подключение библиотеки для связи микроконтроллера с енкодером
+Encoder enc(CLK, DT, SW); //объявление переменных для енкодера
+#include <iarduino_IR_TX.h> //подключение библиотеки для связи инфракрасного передатчика с микроконтроллером
+iarduino_IR_TX VD(9); // объявление переменной и пина для ик передатчика
+OLED  myOLED(SDA, SCL, 8); //объявление переменных для дисплея
+//массивы данных для вывода изображений на дисплей
+extern uint8_t led[]; 
+extern uint8_t led1[];
+extern uint8_t led2[];
+extern uint8_t led3[];
+const byte stroks = 4; //переменная, отвечающая за количество «строк» матричной клавиатуры.
+const byte stolbs = 4; //переменная, отвечающая за количество «столбцов» матричной клавиатуры.
+//матрица клавиатуры, в которой расположены названия клавиш.
+char hexaKeys[stroks][stolbs]{ 
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'U','0','S','D'}
+  };
+  byte rowPins[stroks]={10,14,15,16}; //указание выводов, отвечающих за строки. 
+  byte colPins[stolbs]={5,6,7,8}; //указание выводов, отвечающих за столбцы. 
+//передача всех данных о клавиатуре в переменную функции для дальнейшего использования.
+  Keypad customKeypad = Keypad(makeKeymap(hexaKeys), rowPins, colPins, stroks, stolbs); 
+int val; //переменная отвечающая за иззменение громкости.
+//первоначальные настройки программы.
+void setup() { 
+  myOLED.begin(); //запуск вывода работы с дисплеем
+  attachInterrupt(0, isrCLK, CHANGE);
+  attachInterrupt(1, isrDT, CHANGE);
+  attachInterrupt(4, isrSW, CHANGE);
+  pinMode(5, INPUT); //инициализация контакта на ввод
+  pinMode(6, INPUT);
+  pinMode(7, INPUT);
+  pinMode(8, INPUT);
+  pinMode(10, INPUT);
+  pinMode(14, INPUT);
+  pinMode(15, INPUT);
+  pinMode(16, INPUT);
+  VD.begin(); //запуск вывода для работы с ик передатчиком
+  VD.protocol("AeQQV~zK]Kp^KJp[@@@@@@@Bp"); //подключения протокола для передачи инфракрасного сигнала
+    myOLED.clrScr(); //отчистка дисплея от невыключенных пикселей
+  myOLED.drawBitmap(0, 0, led1, 128, 64); //объявление рабочей области дисплея
+  myOLED.update();// обнавление дисплея
+  myOLED.invert(true); //запуск инвертирования пикселей на дисплее
+}
+void isrCLK(){//функция счётчика энкодера
+  enc.tick();
+  }
+void isrDT(){//функция счётчика энкодера
+  enc.tick();
+  }
+void isrSW(){//функция счётчика энкодера
+  enc.tick();
+  }
+void turnLeft(){ //функция повышения громкости и передачи сигнала через инфракрасный передатчик с помощью енкодера
+  VD.send(0x417, true),VD.send(0x417, true),VD.send(0x417, true),VD.send(0x417, true),val+=5 /*,  myOLED.clrScr(), myOLED.drawBitmap(0, 0, led1, 128, 64),myOLED.update(),myOLED.invert(true)*/;
+  }
+void turnRight(){//функция понижения громкости и передачи сигнала через инфракрасный передатчик с помощью енкодера
+  VD.send(0x412, true),VD.send(0x412, true),VD.send(0x412, true),VD.send(0x412, true),val-=5 /*, myOLED.clrScr(), myOLED.drawBitmap(0, 0, led2, 128, 64),myOLED.update(),myOLED.invert(true)*/;
+  }
+void key() {//функция для передачи сигнала клавиш с помощью инфракрасного передатчика
+  char customKey = customKeypad.getKey(); //считывание значения с массива клавиатуры
+  switch (customKey) { //конструкция переключателя, используемая как замена множеству конструкций if-else.
+    case '1': VD.send(0x112); break; // Случай при приеме ‘1’ с пульта.// выполнение действия// остановка случая
+    case '2': VD.send(0x240); break;
+    case '3': VD.send(0x440); break;
+    case 'A': VD.send(0x420); break;
+    case '4': VD.send(0x225); break;
+    case '5': VD.send(0x487); break;
+    case '6': VD.send(0x233); break;
+    case 'B': VD.send(0x278); break;
+    case '7': VD.send(0x247); break;
+    case '8': VD.send(0x121); break;
+    case '9': VD.send(0x252); break;
+    case 'C': VD.send(0x522); break;
+    case 'U': VD.send(0x347); break;
+    case '0': VD.send(0x312); break;
+    case 'S': VD.send(0x322); break;
+    case 'D': VD.send(0x555); break;
+}
+}
+void loop() { //основное тело программы, повторяющееся до того момента, пока на устройство подается питание
+key();//функция для передачи сигнала клавиш с помощью инфракрасного передатчика 
+enc.tick();
+    if (enc.isRight()) turnRight(); //конструкция "если" при срабаотывании которой выполняется функция понижения громкости и передачи сигнала через инфракрасный передатчик с помощью енкодера
+    if (enc.isLeft()) turnLeft(); //конструкция "если" при срабаотывании которой выполняется функция повышения громкости и передачи сигнала через инфракрасный передатчик с помощью енкодера
+    if (enc.isRightH()) val-=1; //конструкция "если" при срабаотывании которой выполняется уменьшение значения на единицу
+    if (enc.isLeftH()) val+=1; //конструкция "если" при срабаотывании которой выполняется увеличение значения на единицу
+    if (enc.isClick()) VD.send(0x427, true); //конструкция "если" при срабаотывании которой выполняется отправка сигнала через ик передатчик
+    if (enc.isHolded()) val-=val;
+    if (enc.isDouble()) val-=1000;
+}
